@@ -1,0 +1,21 @@
+# 美团 AI Agent 后端配置
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: meituan-agent-backend
+
+# Agent 配置
+agent:
+  python:
+    script: python
+    path: ../agent
+  timeout: 30
+
+# 日志配置
+logging:
+  level:
+    com.meituan.agent: DEBUG
+    org.springframework.web.socket: DEBUG

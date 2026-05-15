@@ -1,0 +1,214 @@
+<!--pages/chat/chat.wxml - 对话页面-->
+
+<view class="container">
+  <!-- 顶部导航 -->
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onBack">
+      <text>‹</text>
+    </view>
+    <view class="nav-title">
+      <text class="nav-title-text">AI 助手</text>
+      <view class="nav-status">
+        <view class="nav-status-dot"></view>
+        <text class="nav-status-text">在线</text>
+      </view>
+    </view>
+    <view class="nav-action" bindtap="onClear">
+      <text>清空</text>
+    </view>
+  </view>
+
+  <!-- 消息列表 -->
+  <scroll-view
+    class="message-list"
+    scroll-y
+    scroll-into-view="{{scrollToMessage}}"
+    scroll-with-animation
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <!-- 欢迎消息 -->
+    <view class="message assistant" id="msg-welcome">
+      <view class="message-avatar">
+        <view class="avatar-ai">
+          <text>🤖</text>
+        </view>
+      </view>
+      <view class="message-bubble">
+        <view class="welcome-card">
+          <view class="welcome-header">
+            <view class="welcome-title-row">
+              <text class="welcome-title">你好！我是美团 AI 助手</text>
+            </view>
+            <text class="welcome-subtitle">我可以帮你规划跨业务的出行安排</text>
+          </view>
+          <view class="welcome-features">
+            <view class="feature-chip">
+              <text class="feature-chip-icon">🎯</text>
+              <text class="feature-chip-text">智能识别</text>
+            </view>
+            <view class="feature-chip">
+              <text class="feature-chip-icon">📋</text>
+              <text class="feature-chip-text">自动规划</text>
+            </view>
+            <view class="feature-chip">
+              <text class="feature-chip-icon">🔄</text>
+              <text class="feature-chip-text">异常自愈</text>
+            </view>
+          </view>
+          <view class="welcome-hint">
+            <view class="hint-icon">💡</view>
+            <text class="hint-text">试试：带老婆孩子出去玩，孩子5岁，老婆在减肥</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 消息列表 -->
+    <view
+      class="message {{item.role}}"
+      wx:for="{{messages}}"
+      wx:key="id"
+      id="msg-{{item.id}}"
+    >
+      <view class="message-avatar">
+        <view wx:if="{{item.role === 'user'}}" class="avatar-user">
+          <text>👤</text>
+        </view>
+        <view wx:else class="avatar-ai">
+          <text>🤖</text>
+        </view>
+      </view>
+      <view class="message-bubble">
+        <!-- 文本消息 -->
+        <view wx:if="{{item.type === 'text'}}" class="text-content">
+          <text>{{item.content}}</text>
+          <view class="message-meta">
+            <text class="message-time">{{item.timeStr}}</text>
+          </view>
+        </view>
+
+        <!-- 任务执行中 -->
+        <view wx:if="{{item.type === 'loading'}}" class="loading-content">
+          <view class="loading-header">
+            <view class="loading-animation">
+              <view class="loading-dot"></view>
+              <view class="loading-dot"></view>
+              <view class="loading-dot"></view>
+            </view>
+            <text class="loading-label">AI 思考中</text>
+          </view>
+          <view class="loading-steps">
+            <view class="loading-step active">
+              <view class="step-dot"></view>
+              <text>解析需求</text>
+            </view>
+            <view class="loading-step">
+              <view class="step-dot"></view>
+              <text>规划行程</text>
+            </view>
+            <view class="loading-step">
+              <view class="step-dot"></view>
+              <text>执行任务</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 待确认方案卡片 -->
+        <view wx:if="{{item.type === 'plan_confirm'}}" class="plan-card plan-confirm-card">
+          <view class="plan-header">
+            <view class="plan-status-wrapper">
+              <view class="plan-status-icon-bg waiting">
+                <text class="plan-status-icon">?</text>
+              </view>
+              <view class="plan-status-info">
+                <text class="plan-status-text">{{item.statusText}}</text>
+                <text class="plan-status-desc">请确认是否执行此方案</text>
+              </view>
+            </view>
+          </view>
+          <view class="plan-summary-section">
+            <text class="plan-summary-text">{{item.summary}}</text>
+          </view>
+          <view class="plan-tasks" wx:if="{{item.tasks.length > 0}}">
+            <view class="task-item" wx:for="{{item.tasks}}" wx:for-item="task" wx:key="task_id">
+              <view class="task-dot pending"></view>
+              <text class="task-name">{{task.name}}</text>
+              <text class="task-tool">{{task.tool_name}}</text>
+            </view>
+          </view>
+          <view class="plan-actions">
+            <view class="plan-btn cancel" bindtap="onCancelPlan">
+              <text class="btn-text">取消</text>
+            </view>
+            <view class="plan-btn confirm" bindtap="onConfirmPlan">
+              <text class="btn-text">确认执行</text>
+              <text class="btn-arrow">→</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 行程卡片 -->
+        <view wx:if="{{item.type === 'plan'}}" class="plan-card">
+          <view class="plan-header">
+            <view class="plan-status-wrapper">
+              <view class="plan-status-icon-bg {{item.status}}">
+                <text class="plan-status-icon">{{item.status === 'success' ? '✓' : '!'}}</text>
+              </view>
+              <view class="plan-status-info">
+                <text class="plan-status-text">{{item.statusText}}</text>
+                <text class="plan-status-desc">共 {{item.tasks.length}} 项任务</text>
+              </view>
+            </view>
+          </view>
+          <view class="plan-tasks">
+            <view class="task-item" wx:for="{{item.tasks}}" wx:for-item="task" wx:key="taskId">
+              <view class="task-dot {{task.status === 'SUCCESS' ? 'success' : 'pending'}}"></view>
+              <text class="task-name">{{task.name}}</text>
+              <text class="task-status-icon">{{task.status === 'SUCCESS' ? '✓' : '○'}}</text>
+            </view>
+          </view>
+          <view class="plan-actions">
+            <view class="plan-btn primary" bindtap="onViewPlan" data-id="{{item.planId}}">
+              <text>查看详情</text>
+              <text class="btn-arrow">→</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部占位 -->
+    <view id="msg-bottom" style="height: 32rpx;"></view>
+  </scroll-view>
+
+  <!-- 输入区域 -->
+  <view class="input-section safe-area-bottom">
+    <view class="input-wrapper">
+      <view class="input-box">
+        <input
+          class="input-field"
+          placeholder="输入你的需求..."
+          placeholder-class="input-placeholder"
+          value="{{userInput}}"
+          bindinput="onInput"
+          bindconfirm="onSubmit"
+          confirm-type="send"
+          disabled="{{isLoading}}"
+          focus="{{!isLoading}}"
+        />
+        <view class="send-btn {{userInput && !isLoading ? 'active' : ''}}" bindtap="onSubmit">
+          <text class="send-icon">{{isLoading ? '···' : '↑'}}</text>
+        </view>
+      </view>
+      <view class="input-hints" wx:if="{{!userInput && !isLoading}}">
+        <view class="hint-tag" bindtap="onQuickInput" data-text="带老婆孩子出去玩">
+          <text>👨‍👩‍👧 家庭出游</text>
+        </view>
+        <view class="hint-tag" bindtap="onQuickInput" data-text="和朋友聚餐">
+          <text>👫 朋友聚会</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

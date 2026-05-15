@@ -1,0 +1,154 @@
+<!--pages/plan/plan.wxml - 行程详情页-->
+
+<view class="container">
+  <!-- 顶部导航 -->
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onBack">
+      <text>‹</text>
+    </view>
+    <text class="nav-title">行程详情</text>
+    <view class="nav-action" bindtap="onShare">
+      <text>📤</text>
+    </view>
+  </view>
+
+  <!-- 状态栏 -->
+  <view class="status-bar {{status}}">
+    <view class="status-bg"></view>
+    <view class="status-content">
+      <view class="status-icon-wrapper">
+        <view class="status-icon-bg">
+          <text class="status-icon" wx:if="{{status === 'success'}}">✓</text>
+          <text class="status-icon" wx:if="{{status === 'partial'}}">!</text>
+          <text class="status-icon" wx:if="{{status === 'error'}}">✕</text>
+          <text class="status-icon" wx:if="{{status === 'replan_needed'}}">↻</text>
+        </view>
+      </view>
+      <view class="status-info">
+        <text class="status-title">{{statusText}}</text>
+        <text class="status-desc">{{statusDesc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 任务统计 -->
+  <view class="stats-card">
+    <view class="stats-grid">
+      <view class="stats-item">
+        <view class="stats-icon-wrapper total">
+          <text>📊</text>
+        </view>
+        <text class="stats-value">{{totalCount}}</text>
+        <text class="stats-label">总任务</text>
+      </view>
+      <view class="stats-divider"></view>
+      <view class="stats-item">
+        <view class="stats-icon-wrapper success">
+          <text>✓</text>
+        </view>
+        <text class="stats-value success">{{successCount}}</text>
+        <text class="stats-label">已完成</text>
+      </view>
+      <view class="stats-divider"></view>
+      <view class="stats-item">
+        <view class="stats-icon-wrapper cost">
+          <text>¥</text>
+        </view>
+        <text class="stats-value primary">{{totalCost}}</text>
+        <text class="stats-label">预估花费</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 任务列表 -->
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title-wrapper">
+        <view class="section-title-bar"></view>
+        <text class="section-title">执行详情</text>
+      </view>
+      <view class="section-badge">
+        <text>{{totalCount}} 项</text>
+      </view>
+    </view>
+    <view class="task-list">
+      <view class="task-card" wx:for="{{tasks}}" wx:key="taskId" bindtap="onToggleTask" data-index="{{index}}">
+        <view class="task-header">
+          <view class="task-status-badge {{item.statusClass}}">
+            <text>{{item.statusIcon}}</text>
+          </view>
+          <view class="task-info">
+            <text class="task-name">{{item.name}}</text>
+            <text class="task-id">{{item.taskId}}</text>
+          </view>
+          <view class="task-expand {{item.expanded ? 'expanded' : ''}}" wx:if="{{item.result}}">
+            <text>›</text>
+          </view>
+        </view>
+        <view class="task-detail" wx:if="{{item.result && item.expanded}}">
+          <view class="detail-grid">
+            <view class="detail-item" wx:for="{{item.resultList}}" wx:for-item="detail" wx:key="key">
+              <text class="detail-key">{{detail.key}}</text>
+              <text class="detail-value">{{detail.value}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 通知消息 -->
+  <view class="section" wx:if="{{notification}}">
+    <view class="section-header">
+      <view class="section-title-wrapper">
+        <view class="section-title-bar hot"></view>
+        <text class="section-title">系统通知</text>
+      </view>
+    </view>
+    <view class="notification-card">
+      <view class="notification-icon-wrapper">
+        <text class="notification-icon">💡</text>
+      </view>
+      <view class="notification-content">
+        <text>{{notification}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 时间线 -->
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title-wrapper">
+        <view class="section-title-bar timeline"></view>
+        <text class="section-title">执行时间线</text>
+      </view>
+    </view>
+    <view class="timeline">
+      <view class="timeline-item" wx:for="{{timeline}}" wx:key="time">
+        <view class="timeline-left">
+          <view class="timeline-dot {{item.type}}"></view>
+          <view class="timeline-line" wx:if="{{!item.isLast}}"></view>
+        </view>
+        <view class="timeline-content">
+          <text class="timeline-time">{{item.time}}</text>
+          <text class="timeline-text">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部间距 -->
+  <view style="height: 180rpx;"></view>
+
+  <!-- 操作按钮 -->
+  <view class="action-bar safe-area-bottom">
+    <button class="btn-share" open-type="share">
+      <text class="btn-icon">📤</text>
+      <text class="btn-text">分享行程</text>
+    </button>
+    <button class="btn-back" bindtap="onBack">
+      <text class="btn-icon">🏠</text>
+      <text class="btn-text">返回首页</text>
+    </button>
+  </view>
+</view>

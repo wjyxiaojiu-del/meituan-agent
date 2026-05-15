@@ -1,0 +1,136 @@
+<!--pages/index/index.wxml - 首页-->
+
+<view class="container">
+  <!-- 顶部欢迎区域 -->
+  <view class="welcome-section">
+    <view class="welcome-bg"></view>
+    <view class="welcome-content">
+      <view class="avatar-wrapper">
+        <view class="avatar-ring"></view>
+        <view class="avatar">🤖</view>
+        <view class="online-dot">
+          <view class="online-pulse"></view>
+        </view>
+      </view>
+      <view class="welcome-text">
+        <text class="greeting">你好，我是美团 AI 助手</text>
+        <view class="subtitle-wrapper">
+          <text class="subtitle">告诉我你的需求，我来帮你规划行程</text>
+          <view class="typing-cursor"></view>
+        </view>
+      </view>
+    </view>
+    <view class="welcome-features">
+      <view class="feature-item">
+        <view class="feature-icon-wrapper">
+          <text class="feature-icon">🎯</text>
+        </view>
+        <text class="feature-text">智能规划</text>
+      </view>
+      <view class="feature-divider"></view>
+      <view class="feature-item">
+        <view class="feature-icon-wrapper">
+          <text class="feature-icon">🔄</text>
+        </view>
+        <text class="feature-text">异常自愈</text>
+      </view>
+      <view class="feature-divider"></view>
+      <view class="feature-item">
+        <view class="feature-icon-wrapper">
+          <text class="feature-icon">💡</text>
+        </view>
+        <text class="feature-text">惊喜安排</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="quick-entry">
+    <view class="section-header">
+      <view class="section-title-wrapper">
+        <view class="section-title-bar"></view>
+        <text class="section-title">快捷场景</text>
+      </view>
+      <view class="section-more-wrapper">
+        <text class="section-more">更多</text>
+        <text class="section-arrow">›</text>
+      </view>
+    </view>
+    <view class="entry-grid">
+      <view class="entry-item" bindtap="onQuickEntry" data-input="{{item.inputs[0]}}" wx:for="{{quickEntries}}" wx:key="title">
+        <view class="entry-icon-wrapper">
+          <text class="entry-icon">{{item.icon}}</text>
+        </view>
+        <view class="entry-info">
+          <text class="entry-title">{{item.title}}</text>
+          <text class="entry-desc">{{item.desc}}</text>
+        </view>
+        <view class="entry-arrow">
+          <text>›</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 热门推荐 -->
+  <view class="hot-section">
+    <view class="section-header">
+      <view class="section-title-wrapper">
+        <view class="section-title-bar hot"></view>
+        <text class="section-title">热门推荐</text>
+      </view>
+      <view class="hot-badge">
+        <text>HOT</text>
+      </view>
+    </view>
+    <scroll-view class="hot-scroll" scroll-x enable-flex show-scrollbar="{{false}}">
+      <view class="hot-item" wx:for="{{hotItems}}" wx:key="title" bindtap="onQuickEntry" data-input="{{item.input}}">
+        <view class="hot-cover">
+          <text class="hot-emoji">{{item.emoji}}</text>
+          <view class="hot-cover-bg"></view>
+        </view>
+        <view class="hot-info">
+          <text class="hot-title">{{item.title}}</text>
+          <view class="hot-bottom">
+            <text class="hot-tag">{{item.tag}}</text>
+            <text class="hot-arrow">→</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 使用提示 -->
+  <view class="tips-section">
+    <view class="tips-card">
+      <view class="tips-icon">💬</view>
+      <view class="tips-content">
+        <text class="tips-title">使用提示</text>
+        <text class="tips-desc">试试说"带老婆孩子出去玩，孩子5岁，老婆在减肥，要有惊喜"</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 输入区域 -->
+  <view class="input-section safe-area-bottom">
+    <view class="input-box">
+      <view class="input-prefix">
+        <text>🔍</text>
+      </view>
+      <input
+        class="input-field"
+        placeholder="描述你的需求..."
+        placeholder-class="input-placeholder"
+        value="{{userInput}}"
+        bindinput="onInput"
+        bindconfirm="onSubmit"
+        confirm-type="send"
+      />
+      <view class="send-btn {{userInput ? 'active' : ''}}" bindtap="onSubmit">
+        <view class="send-btn-inner">
+          <text class="send-icon">↑</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
