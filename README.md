@@ -1,3 +1,5 @@
+> **中文** | [English](README_en.md)
+
 # 美团 AI Agent — 剧本杀 Citywalk × 智能行程规划
 
 > 不只是推荐去哪玩，而是把整座城市变成沉浸式游戏场，Agent 做你的 DM（主持人）。
