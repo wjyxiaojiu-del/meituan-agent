@@ -1,4 +1,6 @@
 // app.js
+const config = require('./config');
+
 App({
   onLaunch() {
     console.log('美团 AI 助手启动');
@@ -10,11 +12,8 @@ App({
   },
 
   globalData: {
-    // API 基础地址
-    baseUrl: 'http://localhost:8080',
-
-    // WebSocket 地址
-    wsUrl: 'ws://localhost:8080/ws',
+    // API 基础地址（从 config.js 读取，可在 config.js 中修改）
+    baseUrl: config.baseUrl || 'http://localhost:8080',
 
     // 用户信息
     userInfo: null,

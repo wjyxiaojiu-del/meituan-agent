@@ -612,3 +612,192 @@
   font-size: 22rpx;
   color: #666666;
 }
+
+/* ===== P6: Plan-confirm task layout (with caps + diff state) ===== */
+.task-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.task-main .task-name {
+  font-size: 26rpx;
+  color: #1A1A1A;
+  font-weight: 500;
+  flex: none;
+}
+
+.task-main .task-tool {
+  font-size: 20rpx;
+  color: #BBBBBB;
+  margin-left: 0;
+}
+
+.task-caps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  align-items: center;
+}
+
+.task-cap {
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+  line-height: 1.4;
+  background-color: #F0F0F0;
+  color: #666666;
+}
+
+.task-cap.cap-coupon,
+.task-cap.cap-团购券 {
+  background: linear-gradient(135deg, #FFF8E1, #FFECB3);
+  color: #E65100;
+  border: 1rpx solid rgba(255, 209, 0, 0.3);
+}
+
+.task-cap.cap-闪送 {
+  background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+  color: #1565C0;
+  border: 1rpx solid rgba(33, 150, 243, 0.3);
+}
+
+.task-cap.cap-会员折扣 {
+  background: linear-gradient(135deg, #F3E5F5, #E1BEE7);
+  color: #7B1FA2;
+  border: 1rpx solid rgba(156, 39, 176, 0.3);
+}
+
+.task-cap.cap-扫码点餐 {
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+  color: #2E7D32;
+  border: 1rpx solid rgba(76, 175, 80, 0.3);
+}
+
+.task-cap.cap-免预约 {
+  background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+  color: #E65100;
+  border: 1rpx solid rgba(255, 152, 0, 0.3);
+}
+
+.task-cap.cap-秒杀 {
+  background: linear-gradient(135deg, #FFEBEE, #FFCDD2);
+  color: #C62828;
+  border: 1rpx solid rgba(244, 67, 54, 0.3);
+}
+
+.task-cap.cap-积分 {
+  background-color: #ECEFF1;
+  color: #546E7A;
+}
+
+/* Diff state highlights */
+.task-item.replaced {
+  background-color: rgba(255, 209, 0, 0.08);
+  border-radius: 12rpx;
+  padding-left: 14rpx;
+  padding-right: 14rpx;
+  border-bottom-color: transparent;
+}
+
+.task-item.inserted {
+  background-color: rgba(82, 196, 26, 0.08);
+  border-radius: 12rpx;
+  padding-left: 14rpx;
+  padding-right: 14rpx;
+  border-bottom-color: transparent;
+}
+
+.task-item.shifted {
+  background-color: rgba(33, 150, 243, 0.08);
+  border-radius: 12rpx;
+  padding-left: 14rpx;
+  padding-right: 14rpx;
+  border-bottom-color: transparent;
+}
+
+.task-diff-tag {
+  font-size: 18rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 10rpx;
+  background: linear-gradient(135deg, #FFD100, #FFC000);
+  color: #1A1A1A;
+  font-weight: 700;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.task-item.inserted .task-diff-tag {
+  background: linear-gradient(135deg, #52C41A, #73D13D);
+  color: #FFFFFF;
+}
+
+.task-item.shifted .task-diff-tag {
+  background: linear-gradient(135deg, #2196F3, #64B5F6);
+  color: #FFFFFF;
+}
+
+/* ===== P6: Error card (plan_modify_failed) ===== */
+.error-card {
+  background: linear-gradient(135deg, #FFF5F5 0%, #FFEBEE 100%);
+  border-radius: 24rpx;
+  padding: 24rpx;
+  border: 1rpx solid rgba(244, 67, 54, 0.15);
+  box-shadow: 0 4rpx 16rpx rgba(244, 67, 54, 0.06);
+}
+
+.error-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.error-badge {
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  background: linear-gradient(135deg, #FF4D4F, #FF7875);
+  color: #FFFFFF;
+  border-radius: 12rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.error-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #1A1A1A;
+  line-height: 1.6;
+}
+
+.error-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.error-chip {
+  padding: 10rpx 20rpx;
+  background-color: #FFFFFF;
+  border-radius: 20rpx;
+  border: 1rpx solid rgba(244, 67, 54, 0.2);
+}
+
+.error-chip:active {
+  background-color: #FFEBEE;
+  transform: scale(0.96);
+}
+
+.error-chip text {
+  font-size: 24rpx;
+  color: #C62828;
+  font-weight: 500;
+}
+
+.error-card .message-meta {
+  border-top-color: rgba(244, 67, 54, 0.1);
+  margin-top: 16rpx;
+}

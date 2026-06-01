@@ -1,14 +1,17 @@
 """
 会话管理模块
-支持多轮对话和上下文理解
+支持多轮对话和上下文理解，支持 SQLite 持久化
 """
 
 import json
 import logging
 import uuid
+import sqlite3
+import threading
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from dataclasses import dataclass, field
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +135,24 @@ class SessionManager:
         session = self.get_session(session_id)
         if session:
             session.add_message(role, content, metadata)
+
+    def list_sessions(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """列出最近的会话摘要"""
+        sessions = []
+        for sid, session in sorted(
+            self.sessions.items(),
+            key=lambda x: x[1].updated_at,
+            reverse=True
+        )[:limit]:
+            last_msg = session.messages[-1].content[:60] if session.messages else ""
+            sessions.append({
+                "session_id": sid,
+                "created_at": session.created_at.isoformat(),
+                "updated_at": session.updated_at.isoformat(),
+                "message_count": len(session.messages),
+                "last_message": last_msg,
+            })
+        return sessions
 
     def _cleanup_sessions(self):
         """清理过期会话"""
@@ -270,3 +291,159 @@ class ContextBuilder:
                 return target
 
         return None
+
+
+class SQLiteSessionManager(SessionManager):
+    """SQLite 持久化会话管理器，重启后会话不丢失"""
+
+    def __init__(self, db_path: str = "data/sessions.db", max_sessions: int = 100, session_timeout: int = 3600):
+        super().__init__(max_sessions=max_sessions, session_timeout=session_timeout)
+        self.db_path = db_path
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._local = threading.local()
+        self._init_db()
+        self._load_sessions()
+
+    def _get_conn(self) -> sqlite3.Connection:
+        if not hasattr(self._local, "conn") or self._local.conn is None:
+            self._local.conn = sqlite3.connect(self.db_path)
+        return self._local.conn
+
+    def _init_db(self):
+        conn = self._get_conn()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+
+    def _load_sessions(self):
+        """从数据库加载未过期的会话到内存"""
+        conn = self._get_conn()
+        now = datetime.now()
+        cutoff = now.timestamp() - self.session_timeout
+        rows = conn.execute(
+            "SELECT session_id, data, created_at, updated_at FROM sessions WHERE updated_at > ?",
+            (datetime.fromtimestamp(cutoff).isoformat(),)
+        ).fetchall()
+
+        for sid, data_json, created_at, updated_at in rows:
+            try:
+                data = json.loads(data_json)
+                session = ConversationState(session_id=sid)
+                session.created_at = datetime.fromisoformat(created_at)
+                session.updated_at = datetime.fromisoformat(updated_at)
+                session.current_intent = data.get("current_intent")
+                session.current_plan = data.get("current_plan")
+                session.context = data.get("context", {})
+                for m in data.get("messages", []):
+                    session.messages.append(Message(
+                        role=m["role"],
+                        content=m["content"],
+                        timestamp=datetime.fromisoformat(m.get("timestamp", updated_at)),
+                        metadata=m.get("metadata", {}),
+                    ))
+                self.sessions[sid] = session
+            except Exception as e:
+                logger.warning(f"加载会话 {sid} 失败: {e}")
+
+        logger.info(f"从 SQLite 加载了 {len(self.sessions)} 个会话")
+
+    def _save_session(self, session_id: str):
+        """将单个会话持久化到 SQLite"""
+        session = self.sessions.get(session_id)
+        if not session:
+            return
+
+        # 深拷贝 context，将不可序列化的对象转为 dict
+        def _serialize(obj):
+            if hasattr(obj, "__dataclass_fields__"):
+                return {k: _serialize(v) for k, v in obj.__dict__.items()}
+            if isinstance(obj, dict):
+                return {k: _serialize(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_serialize(v) for v in obj]
+            if isinstance(obj, (str, int, float, bool, type(None))):
+                return obj
+            return str(obj)
+
+        data = {
+            "messages": [m.to_dict() for m in session.messages],
+            "current_intent": session.current_intent,
+            "current_plan": session.current_plan,
+            "context": _serialize(session.context),
+        }
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT OR REPLACE INTO sessions (session_id, data, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (session_id, json.dumps(data, ensure_ascii=False), session.created_at.isoformat(), session.updated_at.isoformat()),
+        )
+        conn.commit()
+
+    def create_session(self) -> str:
+        session_id = super().create_session()
+        self._save_session(session_id)
+        return session_id
+
+    def add_message(self, session_id: str, role: str, content: str, metadata: Dict[str, Any] = None):
+        super().add_message(session_id, role, content, metadata)
+        self._save_session(session_id)
+
+    def get_session(self, session_id: str) -> Optional[ConversationState]:
+        session = super().get_session(session_id)
+        if session:
+            session.updated_at = datetime.now()
+            self._save_session(session_id)
+        return session
+
+    def _cleanup_sessions(self):
+        super()._cleanup_sessions()
+        # 清理 SQLite 中过期的会话
+        conn = self._get_conn()
+        cutoff = (datetime.now().timestamp() - self.session_timeout)
+        conn.execute(
+            "DELETE FROM sessions WHERE updated_at < ?",
+            (datetime.fromtimestamp(cutoff).isoformat(),)
+        )
+        conn.commit()
+
+    def list_sessions(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """从 SQLite 查询最近会话摘要（不依赖内存）"""
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT session_id, data, created_at, updated_at FROM sessions ORDER BY updated_at DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+
+        sessions = []
+        for sid, data_json, created_at, updated_at in rows:
+            try:
+                data = json.loads(data_json)
+                messages = data.get("messages", [])
+                last_msg = ""
+                for m in reversed(messages):
+                    if m.get("role") == "assistant":
+                        last_msg = m.get("content", "")[:60]
+                        break
+                if not last_msg and messages:
+                    last_msg = messages[-1].get("content", "")[:60]
+                sessions.append({
+                    "session_id": sid,
+                    "created_at": created_at,
+                    "updated_at": updated_at,
+                    "message_count": len(messages),
+                    "last_message": last_msg,
+                })
+            except Exception:
+                sessions.append({
+                    "session_id": sid,
+                    "created_at": created_at,
+                    "updated_at": updated_at,
+                    "message_count": 0,
+                    "last_message": "(数据解析失败)",
+                })
+        return sessions

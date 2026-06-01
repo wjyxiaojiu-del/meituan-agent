@@ -154,7 +154,9 @@ class TestStoryEngine:
             "raw_input": "自己出去逛",
             "surprise": False,
         }
-        assert engine.select_template(intent) == "美食侦探"
+        result = engine.select_template(intent)
+        valid_pool = ["美食侦探", "城市猎人", "美食探店", "悬疑推理", "文艺青年"]
+        assert result in valid_pool
 
     @pytest.mark.asyncio
     async def test_generate_story_route(self, engine):
@@ -211,20 +213,24 @@ class TestStoryEngine:
         assert "完成测试" in text
 
     def test_story_templates_count(self):
-        assert len(STORY_TEMPLATES) >= 4
+        assert len(STORY_TEMPLATES) >= 6
         assert "美食侦探" in STORY_TEMPLATES
         assert "浪漫逃亡" in STORY_TEMPLATES
         assert "团建大作战" in STORY_TEMPLATES
         assert "亲子冒险" in STORY_TEMPLATES
+        assert "悬疑推理" in STORY_TEMPLATES
+        assert "文艺青年" in STORY_TEMPLATES
 
     def test_template_structure(self):
-        for name, tmpl in STORY_TEMPLATES.items():
-            assert "title" in tmpl, f"{name} 缺少 title"
-            assert "theme" in tmpl, f"{name} 缺少 theme"
-            assert "description" in tmpl, f"{name} 缺少 description"
-            assert "difficulty" in tmpl, f"{name} 缺少 difficulty"
-            assert "checkpoints" in tmpl, f"{name} 缺少 checkpoints"
-            assert len(tmpl["checkpoints"]) >= 2, f"{name} 至少需要 2 个 checkpoint"
+        for name, templates in STORY_TEMPLATES.items():
+            assert isinstance(templates, list), f"{name} 应该是列表"
+            for tmpl in templates:
+                assert "title" in tmpl, f"{name} 缺少 title"
+                assert "theme" in tmpl, f"{name} 缺少 theme"
+                assert "description" in tmpl, f"{name} 缺少 description"
+                assert "difficulty" in tmpl, f"{name} 缺少 difficulty"
+                assert "checkpoints" in tmpl, f"{name} 缺少 checkpoints"
+                assert len(tmpl["checkpoints"]) >= 2, f"{name} 至少需要 2 个 checkpoint"
             for cp in tmpl["checkpoints"]:
                 assert "narrative" in cp, f"{name} checkpoint 缺少 narrative"
                 assert "task" in cp, f"{name} checkpoint 缺少 task"

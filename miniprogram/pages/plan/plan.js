@@ -27,8 +27,14 @@ Page({
     if (planData) {
       this.processPlanData(planData);
     } else {
-      // 使用示例数据
-      this.loadExampleData();
+      // 无真实数据时显示错误，不兜底假数据
+      this.setData({
+        status: 'error',
+        statusText: '行程未找到',
+        statusDesc: '该行程数据不存在或已过期，请返回首页重新规划',
+        tasks: [],
+        timeline: []
+      });
     }
   },
 
@@ -176,78 +182,6 @@ Page({
     this.setData({
       [key]: !this.data.tasks[index].expanded
     });
-  },
-
-  // 加载示例数据
-  loadExampleData() {
-    const exampleData = {
-      status: 'success',
-      tasks: [
-        {
-          taskId: 'T001',
-          name: '查询天气',
-          status: 'SUCCESS',
-          result: {
-            condition: '晴',
-            temperature: 28,
-            suggestion: '天气晴好，适合户外活动'
-          }
-        },
-        {
-          taskId: 'T002',
-          name: '搜索儿童乐园',
-          status: 'SUCCESS',
-          result: {
-            total: 2,
-            top_result: '奇乐儿儿童主题乐园'
-          }
-        },
-        {
-          taskId: 'T003',
-          name: '搜索餐厅',
-          status: 'SUCCESS',
-          result: {
-            total: 2,
-            top_result: '新元素餐厅'
-          }
-        },
-        {
-          taskId: 'T004',
-          name: '预订餐厅',
-          status: 'SUCCESS',
-          result: {
-            booking_id: 'BK20260514153000',
-            restaurant: '新元素餐厅',
-            time: '17:00',
-            party_size: 3
-          }
-        },
-        {
-          taskId: 'T005',
-          name: '云排队取号',
-          status: 'SUCCESS',
-          result: {
-            my_number: 'A036',
-            waiting_ahead: 5,
-            estimated_wait: '25分钟'
-          }
-        },
-        {
-          taskId: 'T006',
-          name: '惊喜配送',
-          status: 'SUCCESS',
-          result: {
-            item: '红玫瑰花束',
-            price: '¥199',
-            deliver_time: '17:30',
-            total_price: 199
-          }
-        }
-      ],
-      notification: '所有任务执行成功！祝您周末愉快！'
-    };
-
-    this.processPlanData(exampleData);
   },
 
   // 分享

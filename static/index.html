@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美团 AI Agent — 剧本杀 Citywalk × 智能行程规划</title>
+<meta name="description" content="美团 AI Agent - AI 驱动的沉浸式城市探索，剧本杀 Citywalk × 智能行程规划">
+<meta name="theme-color" content="#06060a">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏙️</text></svg>">
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/leaflet.css">
+<script src="/static/leaflet.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<div class="loader" id="loader"><div class="loader-ring"></div><div class="loader-text">初始化 AI Agent...</div></div>
+
+<nav class="nav">
+  <div class="nav-l"><div class="nav-logo">M</div><div class="nav-name">美团 AI Agent</div></div>
+  <button class="nav-hamburger" id="navHamburger" onclick="toggleMobileNav()" aria-label="菜单">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-links">
+    <a href="#planner" class="nav-link">路线编辑器</a>
+    <a href="#demo" class="nav-link">AI 规划师</a>
+    <a href="#how" class="nav-link">工作流程</a>
+    <a href="#tools" class="nav-link">Agent 能力</a>
+    <a href="#diff" class="nav-link">差异化</a>
+    <a href="#arch" class="nav-link">技术架构</a>
+  </div>
+  <div class="nav-r"><div class="nav-pill"><div class="nav-dot"></div>MiMo-v2.5-pro</div></div>
+</nav>
+
+<section class="hero">
+  <div class="hero-glow-purple"></div>
+  <div class="hero-inner">
+    <div class="hero-tag"><i data-lucide="trophy" style="width:14px;height:14px"></i> 美团 AI Agent 大赛</div>
+    <h1>AI 驱动的<em>沉浸式城市探索</em></h1>
+    <p class="hero-sub">理解需求 · 规划路线 · 执行预订 · 剧本杀叙事 — 让每段旅程都有故事</p>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-n">6</div><div class="stat-l">智能场景</div></div>
+      <div class="stat"><div class="stat-n">55+</div><div class="stat-l">POI 商户</div></div>
+      <div class="stat"><div class="stat-n">17</div><div class="stat-l">剧本模板</div></div>
+      <div class="stat"><div class="stat-n">6</div><div class="stat-l">Agent 工具</div></div>
+    </div>
+  </div>
+  <div class="hero-scroll">
+    <div class="hero-scroll-line"></div>
+    <span>向下探索</span>
+  </div>
+</section>
+
+<!-- ===== 主功能 1：交互式路线编辑器 ===== -->
+<section class="planner-section" id="planner">
+  <div class="planner-inner">
+    <div class="section-label">路线编辑器</div>
+    <h2 class="section-title">自由设计你的<em>专属路线</em></h2>
+    <p class="section-sub">点击地图上的景点加入路线，拖拽调整顺序，一键智能排序</p>
+
+    <div class="planner-layout">
+      <!-- 左侧：路线面板 -->
+      <div class="planner-sidebar">
+        <div class="ps-hd">
+          <span class="ps-title">我的路线</span>
+          <div class="ps-actions">
+            <button class="ps-btn" id="undoRouteBtn" onclick="undoRoute()" title="撤销" aria-label="撤销上一步操作" disabled><i data-lucide="undo-2" style="width:13px;height:13px"></i></button>
+            <button class="ps-btn optimize" onclick="optimizeMyRoute()" title="智能排序" aria-label="智能排序路线"><i data-lucide="brain" style="width:13px;height:13px"></i> 智能排序</button>
+            <button class="ps-btn clear" onclick="clearMyRoute()" title="清空" aria-label="清空路线"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+          </div>
+        </div>
+        <div class="ps-stats" id="psStats"></div>
+        <div class="ps-list" id="psList">
+          <div class="ps-empty" id="psEmpty">点击地图上的景点<br>添加到你的路线</div>
+        </div>
+        <div class="ps-footer" id="psFooter" style="display:none">
+          <button class="ps-btn go" onclick="confirmMyRoute()"><i data-lucide="check" style="width:13px;height:13px"></i> 确认这条路线</button>
+        </div>
+      </div>
+
+      <!-- 右侧：地图 -->
+      <div class="planner-map-wrap">
+        <div class="planner-guide" id="plannerGuide">
+          <div class="planner-guide-icon"><i data-lucide="lightbulb" style="width:18px;height:18px"></i></div>
+          <div class="planner-guide-text"><strong>点击地图上的景点</strong> 加入路线，左侧拖拽调整顺序，<strong>智能排序</strong> 自动优化</div>
+        </div>
+        <div class="pm-filters" id="pmFilters">
+          <button class="pm-filter active" data-cat="all">全部</button>
+          <button class="pm-filter" data-cat="餐厅">🍽️ 餐厅</button>
+          <button class="pm-filter" data-cat="咖啡馆">☕ 咖啡</button>
+          <button class="pm-filter" data-cat="儿童乐园">🎪 亲子</button>
+          <button class="pm-filter" data-cat="密室逃脱">🔐 密室</button>
+          <button class="pm-filter" data-cat="KTV">🎤 KTV</button>
+          <button class="pm-filter" data-cat="剧本杀">🎭 剧本杀</button>
+          <button class="pm-filter" data-cat="博物馆">🏛️ 博物馆</button>
+          <button class="pm-filter" data-cat="酒店">🏨 酒店</button>
+        </div>
+        <div id="plannerMap" class="planner-map"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 主功能 2：AI 行程规划师 ===== -->
+<section class="demo-section" id="demo">
+  <div class="demo-inner">
+    <div class="section-label">AI 规划师</div>
+    <h2 class="section-title">一句话，<em>搞定整个行程</em></h2>
+    <p class="section-sub">描述你的需求，AI 自动搜索、规划、预订、生成故事</p>
+
+    <div class="demo-layout">
+      <!-- 场景选择 -->
+      <div class="demo-scenes" role="list" aria-label="快速场景选择">
+        <div class="sc" onclick="pickScene(0)" role="listitem" tabindex="0" aria-label="家庭下午出游：孩子5岁，老婆减肥，下午4-6小时亲子+惊喜" onkeydown="if(event.key==='Enter')pickScene(0)">
+          <div class="sc-icon">👨‍👩‍👧</div><div class="sc-name">家庭下午出游</div>
+          <div class="sc-desc">孩子5岁，老婆减肥，下午4-6小时亲子+惊喜</div>
+        </div>
+        <div class="sc" onclick="pickScene(1)" role="listitem" tabindex="0" aria-label="朋友下午局：4人2男2女，吃喝玩一站搞定" onkeydown="if(event.key==='Enter')pickScene(1)">
+          <div class="sc-icon">👫</div><div class="sc-name">朋友下午局</div>
+          <div class="sc-desc">4人2男2女，吃喝玩一站搞定</div>
+        </div>
+        <div class="sc" onclick="pickScene(2)" role="listitem" tabindex="0" aria-label="情侣约会：和老婆或女朋友，浪漫下午+晚餐" onkeydown="if(event.key==='Enter')pickScene(2)">
+          <div class="sc-icon">💑</div><div class="sc-name">情侣约会</div>
+          <div class="sc-desc">和老婆/女朋友，浪漫下午+晚餐</div>
+        </div>
+        <div class="sc" onclick="pickScene(3)" role="listitem" tabindex="0" aria-label="亲子时光：带孩子出去玩，寓教于乐" onkeydown="if(event.key==='Enter')pickScene(3)">
+          <div class="sc-icon">🧒</div><div class="sc-name">亲子时光</div>
+          <div class="sc-desc">带孩子出去玩，寓教于乐</div>
+        </div>
+        <div class="sc" onclick="pickScene(4)" role="listitem" tabindex="0" aria-label="独处充电：一个人，咖啡+书店+散步" onkeydown="if(event.key==='Enter')pickScene(4)">
+          <div class="sc-icon">🧘</div><div class="sc-name">独处充电</div>
+          <div class="sc-desc">一个人，咖啡+书店+散步</div>
+        </div>
+        <div class="sc" onclick="pickScene(5)" role="listitem" tabindex="0" aria-label="多人聚会：6-10人朋友聚会，轰趴+聚餐" onkeydown="if(event.key==='Enter')pickScene(5)">
+          <div class="sc-icon">🎉</div><div class="sc-name">多人聚会</div>
+          <div class="sc-desc">6-10人朋友聚会，轰趴+聚餐</div>
+        </div>
+      </div>
+      <label class="story-toggle">
+        <input type="checkbox" id="storyToggle" aria-describedby="storyHelp">
+        <span class="story-toggle-slider"></span>
+        <span class="story-toggle-text"><i data-lucide="theater" style="width:14px;height:14px"></i> 开启剧情模式</span>
+      </label>
+      <div class="story-help" id="storyHelp">开启后，AI 会为你的行程创作专属剧本杀故事，每个站点都是一个剧情节点</div>
+
+      <!-- 聊天框 -->
+      <div class="chat">
+        <div class="chat-hd">
+          <div class="chat-hd-l">
+            <div class="chat-av"><i data-lucide="bot" style="width:18px;height:18px"></i></div>
+            <div class="chat-meta"><div class="chat-name">美团 AI 行程规划师</div><div class="chat-sub">MiMo-v2.5-pro</div></div>
+          </div>
+          <div class="chat-hd-r">
+            <button class="hd-btn" onclick="toggleHistory()" title="历史会话" aria-label="历史会话"><i data-lucide="history" style="width:16px;height:16px"></i></button>
+            <button class="hd-btn" onclick="resetChat()" title="新对话" aria-label="新对话"><i data-lucide="plus" style="width:16px;height:16px"></i></button>
+          </div>
+        </div>
+        <!-- 历史会话面板 -->
+        <div class="history-panel" id="historyPanel">
+          <div class="hp-hd">
+            <span class="hp-title">历史会话</span>
+            <button class="hp-close" onclick="toggleHistory()" aria-label="关闭">✕</button>
+          </div>
+          <div class="hp-list" id="historyList">
+            <div class="hp-empty">加载中...</div>
+          </div>
+        </div>
+        <div class="msgs" id="msgs" role="log" aria-live="polite" aria-label="对话消息">
+          <div class="welcome" id="welcome">
+            <div class="welcome-icon">🏙️</div>
+            <h3>你好，我是美团 AI 行程规划师</h3>
+            <p>选择上方场景或直接描述需求</p>
+            <div class="welcome-chips">
+              <div class="chip" onclick="pickScene(0)">家庭下午</div>
+              <div class="chip" onclick="pickScene(1)">朋友下午</div>
+              <div class="chip" onclick="pickScene(2)">情侣约会</div>
+              <div class="chip" onclick="pickScene(3)">亲子时光</div>
+              <div class="chip" onclick="pickScene(4)">独处充电</div>
+              <div class="chip" onclick="pickScene(5)">多人聚会</div>
+            </div>
+          </div>
+        </div>
+        <div class="input-area" onclick="document.getElementById('inp').focus()">
+          <div class="input-hint"><i data-lucide="pencil" style="width:12px;height:12px"></i> 也可以直接输入你的想法</div>
+          <div class="input-row">
+            <input type="text" id="inp" placeholder="输入你想去的地方或活动，如「带孩子去游乐园」..." onkeydown="if(event.key==='Enter')send()" aria-label="描述你的出行需求">
+            <button class="send" id="sendBtn" onclick="send()" aria-label="发送"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 以下为介绍性内容 ===== -->
+
+<!-- How It Works -->
+<section class="how-section" id="how">
+  <div class="how-inner">
+    <div class="section-label">工作流程</div>
+    <h2 class="section-title">一句话，<em>搞定整个下午</em></h2>
+    <p class="section-sub">从"我想出去玩"到"所有预订完成"，只需 3 步</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-icon"><i data-lucide="message-circle"></i></div>
+        <div class="step-title">说出需求</div>
+        <div class="step-desc">一句自然语言描述，AI 理解你的意图、人数、偏好、预算</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-icon"><i data-lucide="brain"></i></div>
+        <div class="step-title">AI 规划方案</div>
+        <div class="step-desc">搜索 POI、规划路线、查天气、排队、生成剧本杀故事</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-icon"><i data-lucide="check-circle-2"></i></div>
+        <div class="step-title">一键执行</div>
+        <div class="step-desc">确认方案后自动完成预订、排队、配送、生成分享文案</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Agent Tools -->
+<section class="tools-section" id="tools">
+  <div class="tools-inner">
+    <div class="section-label">Agent 能力</div>
+    <h2 class="section-title">6 个工具，<em>覆盖吃喝玩乐全流程</em></h2>
+    <div class="tools-grid">
+      <div class="tool-card">
+        <div class="tool-icon"><i data-lucide="cloud-sun"></i></div>
+        <div class="tool-name">天气查询</div>
+        <div class="tool-desc">实时天气 + 穿衣/出行建议，下雨自动调整室内方案</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon"><i data-lucide="search"></i></div>
+        <div class="tool-name">POI 搜索</div>
+        <div class="tool-desc">16+ 品类、55+ 商户，按评分/距离/价格/团购/适合人群筛选</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon"><i data-lucide="utensils"></i></div>
+        <div class="tool-name">餐厅预订</div>
+        <div class="tool-desc">自动匹配餐厅、确认人数和时间、处理特殊要求（宝宝椅/低卡）</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon"><i data-lucide="ticket"></i></div>
+        <div class="tool-name">排队取号</div>
+        <div class="tool-desc">热门店铺远程取号，实时查看前方桌数和预计等待时间</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon"><i data-lucide="package"></i></div>
+        <div class="tool-name">即时配送</div>
+        <div class="tool-desc">外卖/鲜花/蛋糕/生鲜/药品/零食，美团闪购全覆盖</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-icon"><i data-lucide="landmark"></i></div>
+        <div class="tool-name">场地预约</div>
+        <div class="tool-desc">密室逃脱/轰趴馆/KTV/会议室，一键预订确认</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Differentiators -->
+<section class="diff-section" id="diff">
+  <div class="diff-inner">
+    <div class="section-label">差异化亮点</div>
+    <h2 class="section-title">不只是推荐，<em>而是帮你做完</em></h2>
+    <div class="diff-grid">
+      <div class="diff-card">
+        <div class="diff-head">
+          <div class="diff-icon"><i data-lucide="target"></i></div>
+          <div class="diff-name">端到端执行</div>
+        </div>
+        <div class="diff-desc">不是给你一个列表让你自己去订——确认方案后，预订、排队、配送全自动完成</div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-head">
+          <div class="diff-icon"><i data-lucide="theater"></i></div>
+          <div class="diff-name">剧本杀叙事</div>
+        </div>
+        <div class="diff-desc">LLM 原创剧情 + 17 个模板库，让普通 Citywalk 变成沉浸式冒险</div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-head">
+          <div class="diff-icon"><i data-lucide="users"></i></div>
+          <div class="diff-name">群体适配</div>
+        </div>
+        <div class="diff-desc">自动识别同行人群（孩子/老婆/朋友），适配不同需求（减肥餐/亲子活动）</div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-head">
+          <div class="diff-icon"><i data-lucide="cpu"></i></div>
+          <div class="diff-name">MiMo 推理</div>
+        </div>
+        <div class="diff-desc">接入小米 MiMo-v2.5-pro 推理模型，意图理解 + 故事生成 + 方案摘要</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section class="arch-section" id="arch">
+  <div class="arch-inner">
+    <div class="section-label">技术架构</div>
+    <h2 class="section-title">系统设计</h2>
+    <div class="arch-diagram">
+      <div class="arch-layer">
+        <div class="arch-layer-label">用户层</div>
+        <div class="arch-boxes">
+          <div class="arch-box">自然语言输入</div>
+          <div class="arch-box">Web UI</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <div class="arch-layer-label">Agent 层</div>
+        <div class="arch-boxes">
+          <div class="arch-box highlight">意图解析</div>
+          <div class="arch-box highlight">路线规划</div>
+          <div class="arch-box highlight">故事生成</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <div class="arch-layer-label">工具层</div>
+        <div class="arch-boxes">
+          <div class="arch-box">天气</div>
+          <div class="arch-box">搜索</div>
+          <div class="arch-box">预订</div>
+          <div class="arch-box">排队</div>
+          <div class="arch-box">配送</div>
+          <div class="arch-box">场地</div>
+        </div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <div class="arch-layer-label">数据层</div>
+        <div class="arch-boxes">
+          <div class="arch-box">POI 数据库</div>
+          <div class="arch-box">模板库 (17)</div>
+          <div class="arch-box">会话管理</div>
+        </div>
+      </div>
+    </div>
+    <div class="arch-stats">
+      <div class="arch-stat"><span class="as-num">185</span><span class="as-label">单元测试</span></div>
+      <div class="arch-stat"><span class="as-num">130</span><span class="as-label">集成测试</span></div>
+      <div class="arch-stat"><span class="as-num">17</span><span class="as-label">剧本模板</span></div>
+      <div class="arch-stat"><span class="as-num">9</span><span class="as-label">故事品类</span></div>
+      <div class="arch-stat"><span class="as-num">50+</span><span class="as-label">POI 商户</span></div>
+      <div class="arch-stat"><span class="as-num">6</span><span class="as-label">Agent 工具</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="foot">
+  <div class="foot-text">美团 AI Agent · 剧本杀 Citywalk × 智能行程规划</div>
+  <div class="foot-tags"><span class="foot-tag">MiMo-v2.5-pro</span><span class="foot-tag">185 Tests</span><span class="foot-tag">6 Tools</span><span class="foot-tag">LLM + RAG</span></div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

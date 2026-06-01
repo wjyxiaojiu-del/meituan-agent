@@ -131,10 +131,26 @@
             <text class="plan-summary-text">{{item.summary}}</text>
           </view>
           <view class="plan-tasks" wx:if="{{item.tasks.length > 0}}">
-            <view class="task-item" wx:for="{{item.tasks}}" wx:for-item="task" wx:key="task_id">
+            <view class="task-item {{task._diffState}}" wx:for="{{item.tasks}}" wx:for-item="task" wx:key="task_id">
               <view class="task-dot pending"></view>
-              <text class="task-name">{{task.name}}</text>
-              <text class="task-tool">{{task.tool_name}}</text>
+              <view class="task-main">
+                <text class="task-name">{{task.name}}</text>
+                <view class="task-caps" wx:if="{{task.params.deal_label || task.params.capability_tags.length}}">
+                  <text class="task-cap cap-coupon" wx:if="{{task.params.deal_label}}">{{task.params.deal_label}}</text>
+                  <text
+                    class="task-cap cap-{{cap}}"
+                    wx:for="{{task.params.capability_tags}}"
+                    wx:for-item="cap"
+                    wx:for-index="capIdx"
+                    wx:key="*this"
+                    wx:if="{{!(task.params.deal_label && cap === '团购券')}}"
+                  >{{cap}}</text>
+                </view>
+                <text class="task-tool">{{task.tool_name}}</text>
+              </view>
+              <text class="task-diff-tag" wx:if="{{task._diffState === 'replaced'}}">换</text>
+              <text class="task-diff-tag" wx:if="{{task._diffState === 'inserted'}}">新</text>
+              <text class="task-diff-tag" wx:if="{{task._diffState === 'shifted'}}">移</text>
             </view>
           </view>
           <view class="plan-actions">
@@ -145,6 +161,29 @@
               <text class="btn-text">确认执行</text>
               <text class="btn-arrow">→</text>
             </view>
+          </view>
+        </view>
+
+        <!-- 错误卡片（plan_modify_failed） -->
+        <view wx:if="{{item.type === 'error'}}" class="error-card">
+          <view class="error-header">
+            <text class="error-badge">{{item.reasonLabel}}</text>
+            <text class="error-text">{{item.errorText}}</text>
+          </view>
+          <view class="error-chips" wx:if="{{item.suggestions.length > 0}}">
+            <view
+              class="error-chip"
+              wx:for="{{item.suggestions}}"
+              wx:for-item="sug"
+              wx:key="hint"
+              bindtap="onSuggestionTap"
+              data-hint="{{sug.hint}}"
+            >
+              <text>{{sug.label}}</text>
+            </view>
+          </view>
+          <view class="message-meta">
+            <text class="message-time">{{item.timeStr}}</text>
           </view>
         </view>
 
@@ -188,7 +227,7 @@
       <view class="input-box">
         <input
           class="input-field"
-          placeholder="输入你的需求..."
+          placeholder="{{pendingSessionId ? '试试：第二个换一家 / 再加杯咖啡 / 晚一点开始' : '输入你的需求...'}}"
           placeholder-class="input-placeholder"
           value="{{userInput}}"
           bindinput="onInput"
@@ -196,17 +235,30 @@
           confirm-type="send"
           disabled="{{isLoading}}"
           focus="{{!isLoading}}"
+          adjust-position="{{true}}"
+          cursor-spacing="24"
         />
         <view class="send-btn {{userInput && !isLoading ? 'active' : ''}}" bindtap="onSubmit">
           <text class="send-icon">{{isLoading ? '···' : '↑'}}</text>
         </view>
       </view>
-      <view class="input-hints" wx:if="{{!userInput && !isLoading}}">
+      <view class="input-hints" wx:if="{{!userInput && !isLoading && !pendingSessionId}}">
         <view class="hint-tag" bindtap="onQuickInput" data-text="带老婆孩子出去玩">
           <text>👨‍👩‍👧 家庭出游</text>
         </view>
         <view class="hint-tag" bindtap="onQuickInput" data-text="和朋友聚餐">
           <text>👫 朋友聚会</text>
+        </view>
+      </view>
+      <view class="input-hints" wx:if="{{!userInput && !isLoading && pendingSessionId}}">
+        <view class="hint-tag" bindtap="onQuickInput" data-text="第二个换一家">
+          <text>🔄 换一家</text>
+        </view>
+        <view class="hint-tag" bindtap="onQuickInput" data-text="再加一家咖啡">
+          <text>☕ 加一站</text>
+        </view>
+        <view class="hint-tag" bindtap="onQuickInput" data-text="晚一点开始">
+          <text>⏰ 时间</text>
         </view>
       </view>
     </view>

@@ -7,37 +7,20 @@
 class IntentPrompts:
     """意图识别提示词"""
 
-    SYSTEM_PROMPT = """你是美团 AI 助手，专门帮助用户规划跨业务的出行安排。
+    SYSTEM_PROMPT = """分析用户需求，输出JSON。格式示例：
+{"people":[{"role":"wife"},{"role":"child","age":5},{"role":"self"}],"needs":["entertainment","dining","meeting"],"constraints":[{"type":"budget","per_person":200},{"type":"group_size","count":20}],"surprise":true,"time_preference":"周末","mood":"轻松愉快","specific_pois":["勇者户外拓展基地","城隍庙小吃街"],"route_ordered":true}
 
-你的任务是理解用户的自然语言输入，提取关键信息并结构化输出。
+规则：
+- people: 每个人一个对象。role: self/child/wife/husband/friend/colleague。child必须有age
+- needs: 数组。可选: entertainment/dining/shopping/travel/meeting
+- constraints: 对象数组。type: budget(含per_person或max)/group_size(含count)/diet(含requirement)/age_appropriate(含age)
+- surprise: 布尔
+- time_preference: 字符串或null
+- mood: 字符串
+- specific_pois: 字符串数组。当用户明确指定了要去的地点时，提取地点名称列表。如用户说"先去A，再去B"则为["A","B"]。用户未指定具体地点时为null
+- route_ordered: 布尔。用户是否要求按指定顺序游玩（如"按顺序"、"先去…再去…"）。默认false
 
-输出必须是严格的 JSON 格式，包含以下字段：
-{
-    "people": [
-        {"role": "child", "age": 5},
-        {"role": "wife"},
-        {"role": "self"}
-    ],
-    "needs": ["entertainment", "dining", "shopping"],
-    "constraints": [
-        {"type": "diet", "requirement": "low_calorie"},
-        {"type": "age_appropriate", "age": 5},
-        {"type": "budget", "max": 500}
-    ],
-    "surprise": true,
-    "time_preference": "周末",
-    "mood": "轻松愉快"
-}
-
-字段说明：
-- people: 涉及的人员，role 可以是 child/wife/husband/friend/self，child 需要 age
-- needs: 需求类型，可选值: entertainment(娱乐), dining(餐饮), shopping(购物), travel(出行)
-- constraints: 约束条件，type 可以是 diet(饮食)/age_appropriate(适龄)/budget(预算)/distance(距离)
-- surprise: 是否需要惊喜安排
-- time_preference: 时间偏好
-- mood: 整体氛围/心情
-
-只输出 JSON，不要有其他文字。"""
+只输出JSON，无其他文字。"""
 
     @staticmethod
     def get_intent_prompt(user_input: str) -> list:

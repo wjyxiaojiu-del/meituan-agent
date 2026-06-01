@@ -56,17 +56,20 @@ def create_agent(
     model: str = None,
     base_url: str = None,
     session_manager: SessionManager = None,
+    live: bool = False,
 ) -> Planner:
     """
     创建 Agent 实例
 
-    配置优先级：参数 > 环境变量 > config.json > Mock 降级
+    配置优先级：--live 参数 > LLM_MODE 环境变量 > 参数 > 环境变量 > config.json > Mock 降级
 
     Args:
         llm_provider: LLM 提供商 (mock/claude/openai/deepseek)
         api_key: API 密钥
         model: 模型名称
         base_url: API 端点
+        session_manager: 共享的会话管理器
+        live: 显式启用真实 LLM（跳过 mock 默认）
     """
     # 1. 从 config.json 读取默认配置（如果存在）
     config_from_file = {}
@@ -80,12 +83,25 @@ def create_agent(
         except Exception as e:
             logger.warning(f"读取配置文件失败: {e}")
 
-    # 2. 配置优先级：参数 > 环境变量 > config.json > 默认值
+    # 2. LLM_MODE 控制：mock / live / auto（默认）
+    llm_mode = os.environ.get("LLM_MODE", "auto").lower()
+
+    # 如果显式 --live 或 LLM_MODE=live，强制使用真实 LLM
+    if live or llm_mode == "live":
+        llm_mode = "live"
+    # 如果 LLM_MODE=mock，强制使用 mock
+    elif llm_mode == "mock":
+        pass
+    # auto 模式：没有 API Key 就用 mock
+    else:
+        llm_mode = "auto"
+
+    # 3. 配置优先级：参数 > 环境变量 > config.json > 默认值
     llm_provider = (
         llm_provider
         or os.environ.get("LLM_PROVIDER")
         or config_from_file.get("llm_provider")
-        or "deepseek"  # 默认使用 deepseek，而非 mock
+        or "openai"
     )
     api_key = (
         api_key
@@ -97,7 +113,7 @@ def create_agent(
         model
         or os.environ.get("LLM_MODEL")
         or config_from_file.get("llm_model")
-        or "deepseek-chat"
+        or "mimo-v2.5-pro"
     )
     base_url = (
         base_url
@@ -106,8 +122,11 @@ def create_agent(
         or ""
     )
 
-    # 3. 如果没有 API Key，降级为 Mock 并打印警告
-    if not api_key and llm_provider != "mock":
+    # 4. 根据 llm_mode 决定最终 provider
+    if llm_mode == "mock":
+        llm_provider = "mock"
+        logger.info("LLM 模式: Mock（显式指定）")
+    elif not api_key and llm_provider != "mock":
         logger.warning(
             f"⚠️ 未配置 LLM API Key（provider={llm_provider}），将使用 Mock 模式。\n"
             f"请设置环境变量 LLM_API_KEY 或在 config.json 中配置 llm_api_key"
@@ -277,51 +296,81 @@ async def demo_replan_flow():
 
 
 async def demo_multi_turn():
-    """演示多轮对话"""
+    """演示多轮对话 - 7 步真实 patch 流"""
     print("\n" + "=" * 60)
-    print("场景四：多轮对话 - 连续修改规划")
+    print("场景四：多轮对话 - 局部修改 + 偏好记忆 (v2.2)")
     print("=" * 60)
 
     planner = create_agent()
 
-    # 第一轮对话
-    user_input_1 = "这周六带老婆孩子出去玩，孩子5岁，老婆在减肥"
-    print(f"\n[第一轮] 用户输入: {user_input_1}")
+    # Step 1: 初次规划
+    step1 = "周六全家三人去三里屯玩，预算 800，想吃点好的"
+    print(f"\n[1/7] 用户: {step1}")
+    res = await planner.run(step1)
+    sid = res.get("session_id")
+    route = (res.get("route") or [])
+    names = " → ".join(r.get("poi_name", "?") for r in route)
+    print(f"      方案 A: {names}")
 
-    result_1 = await planner.run(user_input_1)
-    session_id = result_1.get("session_id")
+    # Step 2: 换餐厅
+    step2 = "把餐厅换成烧烤"
+    print(f"\n[2/7] 用户: {step2}")
+    res = await planner.continue_conversation(step2, sid)
+    _print_change(res)
 
-    print(f"✅ 规划完成，会话 ID: {session_id}")
-    print(f"   任务数: {len(result_1.get('results', {}))}")
+    # Step 3: 删最后一个
+    step3 = "删掉最后那个"
+    print(f"\n[3/7] 用户: {step3}")
+    res = await planner.continue_conversation(step3, sid)
+    _print_change(res)
 
-    # 第二轮对话 - 修改需求
-    user_input_2 = "把餐厅换成火锅"
-    print(f"\n[第二轮] 用户输入: {user_input_2}")
-    print("   检测到修改请求，更新规划...")
+    # Step 4: 加咖啡
+    step4 = "再加一家咖啡"
+    print(f"\n[4/7] 用户: {step4}")
+    res = await planner.continue_conversation(step4, sid)
+    _print_change(res)
 
-    result_2 = await planner.continue_conversation(user_input_2, session_id)
+    # Step 5: 调时间
+    step5 = "晚一点开始"
+    print(f"\n[5/7] 用户: {step5}")
+    res = await planner.continue_conversation(step5, sid)
+    _print_change(res)
 
-    print(f"✅ 规划更新完成")
-    print(f"   任务数: {len(result_2.get('results', {}))}")
+    # Step 6: 偏好声明
+    step6 = "下次别推三里屯了"
+    print(f"\n[6/7] 用户: {step6}")
+    res = await planner.continue_conversation(step6, sid)
+    _print_change(res)
 
-    # 第三轮对话 - 添加惊喜
-    user_input_3 = "还要有惊喜安排"
-    print(f"\n[第三轮] 用户输入: {user_input_3}")
-    print("   检测到添加需求，更新规划...")
+    # Step 7: 确认执行
+    print(f"\n[7/7] 用户: 确认执行")
+    res = await planner.confirm_and_execute(sid, confirmed=True)
+    print(f"      状态: {res.get('status')}, 任务 {len(res.get('results', {}))} 项完成")
 
-    result_3 = await planner.continue_conversation(user_input_3, session_id)
 
-    print(f"✅ 规划更新完成")
-    print(f"   任务数: {len(result_3.get('results', {}))}")
-
-    # 打印最终结果
-    print("\n" + "-" * 40)
-    print("最终规划结果:")
-    print("-" * 40)
-
-    for task_id, task_result in result_3.get("results", {}).items():
-        if isinstance(task_result, dict):
-            print(f"  [{task_id}] {task_result.get('name', task_id)}: ✅")
+def _print_change(result):
+    """打印 patch 路径的变更日志"""
+    status = result.get("status")
+    if status == "plan_modified":
+        log = result.get("change_log", [])
+        for entry in log:
+            t = entry.get("type")
+            if t == "replace":
+                print(f"      ✓ {entry['before']['name']} → {entry['after']['name']}")
+            elif t == "remove":
+                print(f"      ✕ 删除 {entry['removed']['name']}")
+            elif t == "insert":
+                print(f"      ＋ 加入 {entry['inserted']['name']}")
+            elif t == "shift_time":
+                print(f"      🕐 调整到 {entry.get('new_start')}")
+            elif t == "preference_noted":
+                noted = entry.get("noted", {})
+                tag = noted.get("category") or noted.get("location") or noted.get("tag")
+                print(f"      📝 已记下偏好: 不推荐「{tag}」")
+    elif status == "plan_modify_failed":
+        print(f"      ⚠️ {result.get('reply', '修改失败')}")
+    else:
+        print(f"      💬 {result.get('reply', '')[:60]}")
 
 
 async def main():

@@ -4,40 +4,42 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    微信小程序 (前端展示)                      │
-│   - 行程卡片展示   - 实时状态更新   - 确认交互界面            │
+│                    前端展示层                                 │
+│   ┌──────────────────┐  ┌──────────────────┐               │
+│   │  Web SPA (静态)   │  │  微信小程序       │               │
+│   │  HTML + CSS + JS  │  │  原生小程序       │               │
+│   └────────┬─────────┘  └────────┬─────────┘               │
+└────────────┼─────────────────────┼──────────────────────────┘
+             │ HTTP                │ HTTP
+             ▼                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│              FastAPI 后端服务 (agent/api.py)                  │
+│   - REST API 网关     - 静态文件服务    - CORS               │
+│   - 会话管理（SQLite） - Unicode 清理                        │
 └───────────────────────────┬─────────────────────────────────┘
-                            │ HTTP/WebSocket
+                            │ 内部调用
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Java Spring Boot (后端服务层)                    │
-│   - API 网关        - 用户会话管理    - 订单状态同步          │
-│   - 消息推送服务    - 数据持久化       - 缓存管理             │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ REST API / gRPC
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Python Agent (智能体核心层)                      │
+│              Python Agent 智能体核心层                        │
 │                                                              │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ Planning    │  │ Tool        │  │ State       │         │
-│  │ Engine      │  │ Orchestrator│  │ Machine     │         │
-│  │ (规划引擎)  │  │ (工具编排)  │  │ (状态机)    │         │
+│  │ Planning    │  │ Route       │  │ Story       │         │
+│  │ Engine      │  │ Planner     │  │ Engine      │         │
+│  │ (规划引擎)  │  │ (路线规划)  │  │ (剧情引擎)  │         │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
 │         │                │                │                  │
-│         └────────────────┼────────────────┘                  │
-│                          ▼                                   │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │              Exception Handler (异常处理器)           │    │
-│  │   - Self-Correction  - Fallback  - Retry             │    │
-│  └─────────────────────────────────────────────────────┘    │
+│  ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐         │
+│  │ State       │  │ Exception   │  │ Scene       │         │
+│  │ Machine     │  │ Handler     │  │ Manager     │         │
+│  │ (状态机)    │  │ (异常处理)  │  │ (场景识别)  │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
 └───────────────────────────┬─────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Mock API Layer (模拟接口层)                │
 │   - Search_POI      - Check_Queue    - Book_Restaurant       │
-│   - Order_Delivery  - Weather_API    - Traffic_API           │
+│   - Order_Delivery  - Weather_API    - Book_Venue            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,18 +47,15 @@
 
 ### 2.1 Planning Engine (规划引擎)
 
-采用 **ReAct (Reasoning + Acting)** 架构：
+采用 **LLM + 规则双通道** 架构：
 
-```python
-# 核心流程
-User Input → Intent Recognition → Task Decomposition → Tool Selection → Execution → Response
-
-# 具体步骤
-1. 解析用户意图（带娃、减肥、惊喜）
-2. 拆解子任务（按时间线 + 按人员需求）
-3. 生成执行计划（带优先级和依赖关系）
-4. 逐步调用工具执行
-5. 动态调整计划（遇到异常时）
+```
+用户输入
+  → 第一层：路线规划引擎（算法驱动）
+      候选 POI 筛选 → 综合评分排序 → 贪心构建路线 → 2-opt 优化
+  → 第二层：LLM 任务生成（AI 驱动）
+      意图 + 路线 + 工具列表 → LLM 生成任务 DAG
+  → 兜底：规则引擎（LLM 失败时自动回退）
 ```
 
 ### 2.2 State Machine (状态机)
@@ -99,180 +98,141 @@ User Input → Intent Recognition → Task Decomposition → Tool Selection → 
 | L2 Fallback | 自动切换备选方案 | 餐厅满座→推荐相似餐厅 |
 | L3 Replan | 重新规划 | 天气突变→室内替代方案 |
 
-## 三、工具调用链设计
+### 2.4 Story Engine (剧情引擎)
 
-### 场景：小明的周末家庭日
+关键词触发 → 模板匹配 → Checkpoint 映射到路线节点
 
-```
-用户输入: "这周六带老婆孩子出去玩，孩子5岁，老婆在减肥，要有惊喜"
+- 4 套故事模板覆盖：家庭、情侣、朋友、团建
+- 关键词检测：仅在用户输入包含剧情相关词汇时激活
+- Checkpoint 动态适配：路线节点多/少于模板时自动调整
 
-Step 1: Intent Recognition
-├── 识别人员: 小明、老婆、5岁孩子
-├── 识别需求: 娱乐、餐饮、惊喜元素
-└── 识别约束: 适合儿童、低卡饮食
+### 2.5 Route Planner (路线规划)
 
-Step 2: Task Decomposition (按时间线)
-├── T1 [14:00-16:30] 儿童游乐场
-│   └── Tool: Search_POI(category="儿童乐园", location="商场", age_range="3-6")
-├── T2 [17:00-18:30] 晚餐
-│   └── Tool: Search_POI(category="餐厅", feature="低卡", nearby=T1.location)
-├── T3 [17:00] 预订餐厅
-│   └── Tool: Book_Restaurant(restaurant_id, time="17:00", party_size=3)
-├── T4 [17:00] 云排队
-│   └── Tool: Check_Queue_Status(restaurant_id) → 自动取号
-├── T5 [17:30] 惊喜配送
-│   └── Tool: Order_Delivery(item="鲜花", deliver_to=T2.location, time="17:30")
-└── T6 [随时] 天气监控
-    └── Tool: Weather_API(date="周六") → 异常时触发 Replan
+- 贪心算法构建初始路线
+- 2-opt 优化（带时间窗口校验）
+- 确定性评分：基于 POI id 的 hash 扰动，保证同输入同输出
 
-Step 3: Execution with Monitoring
-└── 每个 Tool 执行后更新状态，异常时触发 Exception Handler
-```
+## 三、技术选型
 
-## 四、异常处理演示场景
+| 组件 | 技术 | 理由 |
+|------|------|------|
+| 后端框架 | FastAPI | 异步支持好，自动文档，Pydantic 验证 |
+| 会话存储 | SQLite | 零配置，持久化，单文件部署 |
+| LLM | DeepSeek / Claude / OpenAI | 多 provider 支持，Mock 兜底 |
+| 前端 | 原生 HTML/CSS/JS | 零构建依赖，静态文件服务 |
+| 测试 | pytest + pytest-asyncio | 异步测试支持，185+ 测试用例 |
 
-### 场景 A：餐厅满座
+## 四、API 接口
+
+### 4.1 规划请求
 
 ```
-触发: Book_Restaurant 返回 "座位已满"
-处理:
-  1. 捕获异常，标记当前任务为 FAILED
-  2. 调用 Search_POI 查找备选餐厅（距离<500m，评分>4.5，有低卡选项）
-  3. 向用户推送通知: "XX餐厅已满座，为您推荐YY餐厅，距离200米，评分4.7，已为您自动预订"
-  4. 更新状态机为 EXECUTING，继续后续任务
-```
-
-### 场景 B：天气突变
-
-```
-触发: Weather_API 返回 "14:00-16:00 有雨"
-处理:
-  1. 识别受影响任务: T1 (儿童乐园，原计划室外区域)
-  2. 检查是否有室内替代: 室内游乐区 → 有，继续
-  3. 若无室内替代: Search_POI(category="室内儿童乐园") → 替换 T1
-  4. 自动调整后续任务时间（可能延迟30分钟）
-  5. 向用户推送: "检测到下午有雨，已将游乐场调整为室内区域"
-```
-
-### 场景 C：配送延迟
-
-```
-触发: Order_Delivery 返回 "预计延迟30分钟"
-处理:
-  1. 计算新配送时间: 17:30 → 18:00
-  2. 检查是否影响主流程: 餐厅预订17:00，用餐约1.5小时，18:00仍在用餐 → OK
-  3. 更新配送时间，向用户推送: "鲜花将在18:00送达，届时您仍在用餐，完美惊喜"
-```
-
-## 五、技术选型
-
-### Python Agent 层
-
-```python
-# requirements.txt
-anthropic>=0.18.0          # Claude API
-langchain>=0.1.0           # Agent 框架（可选）
-pydantic>=2.0              # 数据模型验证
-fastapi>=0.100.0           # 内部 API 服务
-redis>=5.0                 # 状态缓存
-```
-
-### Java 后端层
-
-```xml
-<!-- pom.xml 核心依赖 -->
-<dependencies>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-websocket</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>com.alibaba</groupId>
-        <artifactId>fastjson</artifactId>
-        <version>2.0.x</version>
-    </dependency>
-</dependencies>
-```
-
-### 小程序前端
-
-```json
-{
-  "dependencies": {
-    "weui-miniprogram": "^1.0.0",
-    "wx-promise-pro": "^3.0.0"
-  }
+POST /api/agent/execute
+Body: {"userInput": "带老婆吃火锅", "sessionId": null}
+Response: {
+  "status": "waiting_confirmation",
+  "sessionId": "abc123",
+  "planSummary": "...",
+  "route": {...},
+  "story": {...},
+  "tasks": [...]
 }
 ```
 
-## 六、目录结构详细设计
+### 4.2 确认执行
+
+```
+POST /api/agent/confirm
+Body: {"sessionId": "abc123", "confirmed": true}
+Response: {
+  "status": "success",
+  "sessionId": "abc123",
+  "results": {...},
+  "shareText": "...",
+  "route": {...},
+  "tasks": [...]
+}
+```
+
+### 4.3 健康检查
+
+```
+GET /api/agent/health
+Response: {
+  "status": "ok",
+  "service": "meituan-agent-backend",
+  "version": "2.1.0",
+  "llm_provider": "mock"
+}
+```
+
+## 五、目录结构
 
 ```
 meituan-agent/
-├── agent/
-│   ├── __init__.py
-│   ├── main.py                    # Agent 入口
+├── agent/                      # Python Agent 核心
+│   ├── api.py                  # FastAPI 后端（统一入口）
+│   ├── main.py                 # Agent 入口
 │   ├── core/
-│   │   ├── __init__.py
-│   │   ├── planner.py             # ReAct 规划引擎
-│   │   ├── state_machine.py       # 状态机管理
-│   │   └── exception_handler.py   # 异常处理器
-│   ├── tools/
-│   │   ├── __init__.py
-│   │   ├── base.py                # 工具基类
-│   │   ├── search_poi.py          # 搜索兴趣点
-│   │   ├── book_restaurant.py     # 餐厅预订
-│   │   ├── check_queue.py         # 排队查询
-│   │   ├── order_delivery.py      # 即时配送
-│   │   ├── weather_api.py         # 天气查询
-│   │   └── traffic_api.py         # 交通查询
-│   ├── prompts/
-│   │   ├── system_prompt.txt      # 系统提示词
-│   │   ├── planning_prompt.txt    # 规划提示词
-│   │   └── error_prompt.txt       # 错误处理提示词
-│   └── utils/
-│       ├── __init__.py
-│       ├── logger.py              # 日志工具
-│       └── config.py              # 配置管理
-├── backend/
-│   ├── src/main/java/com/meituan/agent/
-│   │   ├── AgentApplication.java
-│   │   ├── controller/
-│   │   │   ├── AgentController.java      # Agent API
-│   │   │   └── WebSocketController.java  # 实时通信
-│   │   ├── service/
-│   │   │   ├── SessionService.java       # 会话管理
-│   │   │   └── OrderService.java         # 订单服务
-│   │   └── model/
-│   │       ├── Session.java
-│   │       └── PlanResult.java
-│   └── pom.xml
-├── miniprogram/
-│   ├── pages/
-│   │   ├── index/                 # 首页
-│   │   ├── chat/                  # 对话页
-│   │   └── plan/                  # 行程卡片页
-│   ├── components/
-│   │   ├── plan-card/             # 行程卡片组件
-│   │   └── status-badge/          # 状态标签组件
-│   ├── app.js
-│   ├── app.json
-│   └── app.wxss
-├── mock/
-│   ├── api_server.py              # Mock API 服务器
-│   └── data/
-│       ├── restaurants.json       # 餐厅数据
-│       ├── entertainment.json     # 娱乐场所数据
-│       └── delivery.json          # 配送数据
-├── docs/
-│   ├── architecture.md            # 本文档
-│   └── design_proposal.md         # 2页设计文档
-└── tests/
-    ├── test_planner.py
-    ├── test_state_machine.py
-    └── test_exception_handler.py
+│   │   ├── planner.py          # 规划引擎（LLM + 规则双通道）
+│   │   ├── route_planner.py    # 路线规划（贪心 + 2-opt）
+│   │   ├── scene_manager.py    # 场景识别（6 种场景）
+│   │   ├── story_engine.py     # 剧本杀叙事引擎
+│   │   ├── session.py          # 会话管理（SQLite 持久化）
+│   │   ├── state_machine.py    # 状态机
+│   │   ├── exception_handler.py # 异常处理
+│   │   └── poi_data.py         # POI 数据（16 品类 50+ 条）
+│   ├── llm/
+│   │   ├── client.py           # LLM 客户端（多 provider）
+│   │   └── prompts.py          # 提示词
+│   └── tools/
+│       ├── search_poi.py       # POI 搜索
+│       ├── book_restaurant.py  # 餐厅预订
+│       ├── book_venue.py       # 场地预订
+│       ├── check_queue.py      # 排队取号
+│       ├── order_delivery.py   # 即时配送
+│       └── weather_api.py      # 天气查询
+├── static/                     # Web 前端
+│   ├── index.html              # HTML 结构
+│   ├── styles.css              # CSS 样式
+│   └── app.js                  # JavaScript 逻辑
+├── miniprogram/                # 微信小程序
+├── tests/                      # 测试（185+ 个）
+├── data/                       # SQLite 数据库（gitignore）
+├── run_demo.py                 # 演示脚本
+├── DESIGN.md                   # 详细设计文档
+└── CHANGELOG.md                # 版本变更记录
+```
+
+## 六、数据流
+
+```
+用户输入 "带老婆孩子出去玩"
+  │
+  ▼
+意图解析 (LLM / 规则)
+  → 识别场景: FAMILY
+  → 识别约束: 儿童友好、低卡饮食
+  → 识别需求: 娱乐 + 餐饮 + 惊喜
+  │
+  ▼
+路线规划 (贪心 + 2-opt)
+  → 候选 POI 评分 → 构建路线 → 优化顺序
+  → 输出: [儿童乐园, 餐厅, ...] + 时间线
+  │
+  ▼
+任务生成 (LLM / 规则)
+  → 天气查询 → POI 搜索 → 餐厅预订 → 排队 → 配送
+  → 输出: Task DAG (带依赖关系)
+  │
+  ▼
+用户确认
+  → 展示方案 → 等待确认
+  │
+  ▼
+任务执行 (按依赖顺序)
+  → 逐个调用工具 → 异常处理 → 结果汇总
+  │
+  ▼
+输出结果 + 分享文案
 ```

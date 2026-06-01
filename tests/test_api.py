@@ -247,6 +247,44 @@ class TestDataContract:
             assert "status" in task
             assert task["status"] in ("SUCCESS", "PENDING")
 
+    def test_execute_route_stats_fields(self):
+        """route_stats 应包含前端依赖的 5 个统计字段"""
+        resp = client.post("/api/agent/execute", json={"userInput": "带孩子出去玩"})
+        data = resp.json()
+        stats = data.get("route_stats") or data.get("routeStats")
+        assert stats is not None
+        for key in ("total_duration", "poi_count", "walking_distance", "total_cost", "total_savings"):
+            assert key in stats, f"route_stats 缺少 {key}"
+
+    def test_execute_route_item_fields(self):
+        """route 中每项应有前端地图依赖的字段"""
+        resp = client.post("/api/agent/execute", json={"userInput": "带孩子出去玩"})
+        data = resp.json()
+        assert len(data["route"]) > 0
+        for r in data["route"]:
+            assert "poi_name" in r, "route item 缺少 poi_name"
+            assert "category" in r, "route item 缺少 category"
+            assert "location" in r, "route item 缺少 location"
+            assert "arrival_time" in r, "route item 缺少 arrival_time"
+
+    def test_execute_llm_status_field(self):
+        """响应应包含 llm_status 字段"""
+        resp = client.post("/api/agent/execute", json={"userInput": "带孩子出去玩"})
+        data = resp.json()
+        assert "llm_status" in data or "llmStatus" in data
+
+    def test_story_checkpoint_fields(self):
+        """剧情模式 checkpoints 应有 poi_name, narrative, task"""
+        resp = client.post("/api/agent/execute", json={
+            "userInput": "和朋友出去玩，要有剧情有挑战"
+        })
+        data = resp.json()
+        if data.get("story"):
+            for cp in data["story"]["checkpoints"]:
+                assert "poi_name" in cp
+                assert "narrative" in cp
+                assert "task" in cp
+
 
 class TestStoryIntegration:
     """剧情模式集成测试"""
@@ -263,12 +301,12 @@ class TestStoryIntegration:
         assert "theme" in data["story"]
 
     def test_story_mode_not_activates(self):
-        """普通需求不应触发剧情模式"""
+        """明确拒绝剧情时不应触发剧情模式"""
         resp = client.post("/api/agent/execute", json={
-            "userInput": "带老婆吃火锅"
+            "userInput": "带老婆吃火锅，不要故事，简单点"
         })
         data = resp.json()
-        # 无剧情关键词，story 应为 null
+        # 明确拒绝剧情，story 应为 null
         assert data["story"] is None
 
     def test_story_with_route(self):

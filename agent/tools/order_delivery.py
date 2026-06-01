@@ -15,7 +15,7 @@ class OrderDeliveryTool(BaseTool):
     """
 
     name = "order_delivery"
-    description = "下单即时配送（鲜花、蛋糕、外卖等）"
+    description = "下单即时配送（鲜花、蛋糕、外卖、生鲜、药品、零食等）"
     parameters_schema = {
         "type": "object",
         "properties": {
@@ -47,7 +47,7 @@ class OrderDeliveryTool(BaseTool):
         "required": ["item_type", "item_name", "deliver_to"]
     }
 
-    # Mock 商品数据
+    # Mock 商品数据 — 覆盖美团闪购/外卖/买菜/买药
     ITEMS = {
         "鲜花": {
             "rose_bouquet": {"name": "红玫瑰花束", "price": 199, "delivery_time": 40},
@@ -57,6 +57,32 @@ class OrderDeliveryTool(BaseTool):
         "蛋糕": {
             "low_cal_chocolate": {"name": "低卡黑巧克力蛋糕", "price": 168, "delivery_time": 60},
             "fruit_cake": {"name": "水果鲜奶蛋糕", "price": 138, "delivery_time": 50},
+        },
+        "外卖": {
+            "light_salad": {"name": "轻食沙拉套餐", "price": 38, "delivery_time": 30},
+            "kids_meal": {"name": "儿童营养套餐", "price": 45, "delivery_time": 35},
+            "low_cal_bowl": {"name": "低卡鸡胸肉碗", "price": 42, "delivery_time": 30},
+            "congee": {"name": "养生粥套餐", "price": 28, "delivery_time": 25},
+            "fruit_platter": {"name": "水果拼盘", "price": 35, "delivery_time": 25},
+            "bento": {"name": "日式便当", "price": 52, "delivery_time": 35},
+        },
+        "生鲜": {
+            "fruit_box": {"name": "时令水果礼盒", "price": 88, "delivery_time": 45},
+            "veggie_pack": {"name": "有机蔬菜套装", "price": 58, "delivery_time": 40},
+            "seafood_set": {"name": "海鲜拼盘", "price": 168, "delivery_time": 50},
+            "meat_pack": {"name": "精选肉类套餐", "price": 128, "delivery_time": 45},
+        },
+        "药品": {
+            "cold_medicine": {"name": "感冒灵颗粒", "price": 18, "delivery_time": 20},
+            "band_aid": {"name": "创可贴", "price": 8, "delivery_time": 15},
+            "vitamin_c": {"name": "维生素C", "price": 25, "delivery_time": 20},
+            "stomach_medicine": {"name": "健胃消食片", "price": 15, "delivery_time": 20},
+            "antipyretic": {"name": "布洛芬", "price": 22, "delivery_time": 15},
+        },
+        "零食": {
+            "chips": {"name": "进口薯片礼盒", "price": 38, "delivery_time": 30},
+            "nuts": {"name": "每日坚果", "price": 48, "delivery_time": 30},
+            "chocolate": {"name": "比利时巧克力", "price": 68, "delivery_time": 35},
         },
     }
 

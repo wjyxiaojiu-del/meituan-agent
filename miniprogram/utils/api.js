@@ -75,6 +75,44 @@ function confirmPlan(sessionId, confirmed) {
 }
 
 /**
+ * 多轮对话：识别修改意图 → 局部 patch；否则普通对话回复
+ * @param {string} userInput - 用户输入
+ * @param {string} sessionId - 会话 ID（必传，必须已有 plan）
+ * @returns {Promise<{status:string, sessionId:string, actionType?:string,
+ *   changeLog?:Array, planSummary?:string, reply?:string, route?:Array,
+ *   routeStats?:Object, story?:Object, tasks?:Array}>}
+ */
+function continueConversation(userInput, sessionId) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${app.globalData.baseUrl}/api/agent/continue`,
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/json'
+      },
+      data: {
+        userInput: userInput,
+        sessionId: sessionId || app.globalData.sessionId
+      },
+      success(res) {
+        if (res.statusCode === 200) {
+          const data = res.data;
+          if (data.sessionId) {
+            app.globalData.sessionId = data.sessionId;
+          }
+          resolve(data);
+        } else {
+          reject(new Error(`多轮对话请求失败: ${res.statusCode}`));
+        }
+      },
+      fail(err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+/**
  * 健康检查
  * @returns {Promise}
  */
@@ -100,5 +138,6 @@ function healthCheck() {
 module.exports = {
   executeAgent,
   confirmPlan,
+  continueConversation,
   healthCheck
 };
