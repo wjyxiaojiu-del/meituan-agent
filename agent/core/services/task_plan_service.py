@@ -79,12 +79,13 @@ class TaskPlanService:
 
         tools_desc = self.tool_registry.to_openai_functions()
 
+        route_section = f"已规划路线（按顺序）：\n{route_desc}" if route_desc else "暂无路线规划，请根据意图自行安排。"
         prompt = f"""你是美团智能行程助手。请根据用户意图生成详细的执行计划。
 
 用户意图：
 {json.dumps(intent, ensure_ascii=False, indent=2)}
 
-{f"已规划路线（按顺序）：\\n{route_desc}" if route_desc else "暂无路线规划，请根据意图自行安排。"}
+{route_section}
 
 可用工具列表：
 {json.dumps(tools_desc, ensure_ascii=False, indent=2)}
